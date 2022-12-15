@@ -94,11 +94,23 @@ trait GetContent
      */
     protected function getFolderContent($folder, $rec = false)
     {
-        return $this->storageDisk->listWith(
-            ['mimetype', 'visibility', 'timestamp', 'size'],
-            $folder,
-            $rec
-        );
+        return $this->storageDisk->listContents($folder, $rec)->map(function ($attributes) {
+            $path = $attributes->path();
+            $name = substr($path, strrpos($path, '/'));
+            $extension = substr($name, strrpos($name, '.') + 1);
+            return [
+                'path' => $path,
+                'dirname' => str_replace("/$name", '', $path),
+                'basename' => $name,
+                'extension' => $extension,
+                'filename' => substr($name, 0, strrpos($name, '.')),
+                'timestamp' => $attributes->lastModified(),
+                'size' => $attributes->isFile() ? $attributes->fileSize() : 0,
+                'type' => $attributes->isFile() ? 'file' : 'dir',
+                'mimetype' => $attributes->isFile() ? ($this->storageDisk->mimeType($path)) : 'folder',
+                'visibility' => $attributes->visibility()
+            ];
+        })->toArray();
     }
 
     protected function ignoreFiles($item)
@@ -137,4 +149,5 @@ trait GetContent
             'size'  => $list->pluck('size')->sum(),
         ];
     }
+
 }
